@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Chatbot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      background: white;
+      width: 450px;
+      height: 600px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      background: #6c47ff;
+      color: white;
+      padding: 16px 20px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .user-message {
+      background: #6c47ff;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bot-message {
+      background: #f0f0f0;
+      color: #333;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input {
+      display: flex;
+      padding: 12px;
+      border-top: 1px solid #eee;
+      gap: 8px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 24px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .chat-input button {
+      background: #6c47ff;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 24px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .chat-input button:hover { background: #5535dd; }
+    .typing { color: #888; font-style: italic; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container">
+
+    <!-- Header -->
+    <div class="chat-header">🤖 My ChatBot</div>
+
+    <!-- Messages Area -->
+    <div class="chat-messages" id="chatMessages">
+      <div class="message bot-message">Hi! I'm your AI assistant. Ask me anything! 😊</div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input">
+      <input type="text" id="userInput" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+  </div>
+
+  <script>
+    const input = document.getElementById("userInput");
+    const messages = document.getElementById("chatMessages");
+
+    // Press Enter to send
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    // Add message bubble to screen
+    function appendMessage(text, sender) {
+      const div = document.createElement("div");
+      div.className = `message ${sender}-message`;
+      div.textContent = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Main send function
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage(text, "user");
+      input.value = "";
+
+      // Show typing indicator
+      const typing = document.createElement("div");
+      typing.className = "typing";
+      typing.textContent = "AI is typing...";
+      typing.id = "typing";
+      messages.appendChild(typing);
+      messages.scrollTop = messages.scrollHeight;
+
+      // Send to Flask backend
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+      });
+
+      // Remove typing indicator
+      document.getElementById("typing")?.remove();
+
+      // Show Claude's reply
+      const data = await response.json();
+      appendMessage(data.reply, "bot");
+    }
+  </script>
+
+</body>
+</html>
