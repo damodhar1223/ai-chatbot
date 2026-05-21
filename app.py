@@ -4,6 +4,7 @@ from groq import Groq
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import uuid
+import json
 from datetime import datetime
 from functools import wraps
 
@@ -14,11 +15,32 @@ app.secret_key = "chatbot-secret-key-123"
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Simple in-memory storage
-users = {}
-all_chats = {}
+# ── File paths for permanent storage ──
+USERS_FILE = "users.json"
+CHATS_FILE = "chats.json"
 
-# Login required decorator
+# ── Load data from files ──
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=2)
+
+def load_chats():
+    if os.path.exists(CHATS_FILE):
+        with open(CHATS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_chats(chats):
+    with open(CHATS_FILE, "w") as f:
+        json.dump(chats, f, indent=2)
+
+# ── Login required decorator ──
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -27,7 +49,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# ─── AUTH ROUTES ───────────────────────────
+# ─── AUTH ROUTES ───────────────────────
 
 @app.route("/")
 def index():
@@ -39,17 +61,19 @@ def index():
 def login():
     if request.method == "POST":
         data = request.json
-        email = data.get("email")
-        password = data.get("password")
+        email = data.get("email", "").strip().lower()
+        password = data.get("password", "")
 
-        user = users.get(email)
-        if not user:
-            return jsonify({"error": "Email not found!"}), 401
-        if not check_password_hash(user["password"], password):
-            return jsonify({"error": "Wrong password!"}), 401
+        users = load_users()
+
+        if email not in users:
+            return jsonify({"error": "Email not found! Please register first."}), 401
+
+        if not check_password_hash(users[email]["password"], password):
+            return jsonify({"error": "Wrong password! Try again."}), 401
 
         session["user_id"] = email
-        session["username"] = user["name"]
+        session["username"] = users[email]["name"]
         return jsonify({"success": True})
 
     return render_template("login.html")
@@ -58,19 +82,33 @@ def login():
 def register():
     if request.method == "POST":
         data = request.json
-        name = data.get("name")
-        email = data.get("email")
-        password = data.get("password")
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip().lower()
+        password = data.get("password", "")
+
+        if not name or not email or not password:
+            return jsonify({"error": "Please fill all fields!"}), 400
+
+        if len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters!"}), 400
+
+        users = load_users()
 
         if email in users:
-            return jsonify({"error": "Email already exists!"}), 400
+            return jsonify({"error": "Email already registered! Please login."}), 400
 
         users[email] = {
             "name": name,
             "email": email,
-            "password": generate_password_hash(password)
+            "password": generate_password_hash(password),
+            "created_at": datetime.now().strftime("%d %b %Y")
         }
-        all_chats[email] = {}
+        save_users(users)
+
+        # Create empty chat space for user
+        chats = load_chats()
+        chats[email] = {}
+        save_chats(chats)
 
         session["user_id"] = email
         session["username"] = name
@@ -83,12 +121,13 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# ─── CHAT ROUTES ───────────────────────────
+# ─── CHAT ROUTES ───────────────────────
 
 @app.route("/chat-page")
 @login_required
 def home():
-    return render_template("index.html", username=session.get("username"))
+    return render_template("index.html",
+        username=session.get("username"))
 
 @app.route("/new-chat", methods=["POST"])
 @login_required
@@ -96,15 +135,19 @@ def new_chat():
     user_id = session["user_id"]
     chat_id = str(uuid.uuid4())[:8]
 
-    if user_id not in all_chats:
-        all_chats[user_id] = {}
+    chats = load_chats()
 
-    all_chats[user_id][chat_id] = {
+    if user_id not in chats:
+        chats[user_id] = {}
+
+    chats[user_id][chat_id] = {
         "id": chat_id,
         "title": "New Chat",
         "messages": [],
-        "created_at": datetime.now().strftime("%d %b %Y")
+        "created_at": datetime.now().strftime("%d %b %Y %H:%M")
     }
+    save_chats(chats)
+
     return jsonify({"chat_id": chat_id})
 
 @app.route("/chat", methods=["POST"])
@@ -119,44 +162,55 @@ def chat():
         if not user_message or not chat_id:
             return jsonify({"error": "Missing data"}), 400
 
-        if user_id not in all_chats:
-            all_chats[user_id] = {}
+        chats = load_chats()
 
-        if chat_id not in all_chats[user_id]:
-            all_chats[user_id][chat_id] = {
+        if user_id not in chats:
+            chats[user_id] = {}
+
+        if chat_id not in chats[user_id]:
+            chats[user_id][chat_id] = {
                 "id": chat_id,
                 "title": "New Chat",
                 "messages": [],
                 "created_at": datetime.now().strftime("%d %b %Y")
             }
 
-        all_chats[user_id][chat_id]["messages"].append({
+        chats[user_id][chat_id]["messages"].append({
             "role": "user",
             "content": user_message
         })
 
-        if all_chats[user_id][chat_id]["title"] == "New Chat":
-            all_chats[user_id][chat_id]["title"] = user_message[:30] + "..." if len(user_message) > 30 else user_message
+        if chats[user_id][chat_id]["title"] == "New Chat":
+            chats[user_id][chat_id]["title"] = (
+                user_message[:30] + "..."
+                if len(user_message) > 30
+                else user_message
+            )
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a helpful friendly AI assistant."}
-            ] + all_chats[user_id][chat_id]["messages"],
+                {
+                    "role": "system",
+                    "content": "You are a helpful friendly AI assistant."
+                }
+            ] + chats[user_id][chat_id]["messages"],
             max_tokens=1024
         )
 
         assistant_message = response.choices[0].message.content
 
-        all_chats[user_id][chat_id]["messages"].append({
+        chats[user_id][chat_id]["messages"].append({
             "role": "assistant",
             "content": assistant_message
         })
 
+        save_chats(chats)
+
         return jsonify({
             "reply": assistant_message,
             "chat_id": chat_id,
-            "title": all_chats[user_id][chat_id]["title"]
+            "title": chats[user_id][chat_id]["title"]
         })
 
     except Exception as e:
@@ -167,9 +221,14 @@ def chat():
 @login_required
 def get_chats():
     user_id = session["user_id"]
-    user_chats = all_chats.get(user_id, {})
+    chats = load_chats()
+    user_chats = chats.get(user_id, {})
     chat_list = [
-        {"id": c["id"], "title": c["title"], "created_at": c["created_at"]}
+        {
+            "id": c["id"],
+            "title": c["title"],
+            "created_at": c["created_at"]
+        }
         for c in user_chats.values()
     ]
     return jsonify({"chats": chat_list[::-1]})
@@ -178,18 +237,27 @@ def get_chats():
 @login_required
 def get_messages(chat_id):
     user_id = session["user_id"]
-    user_chats = all_chats.get(user_id, {})
+    chats = load_chats()
+    user_chats = chats.get(user_id, {})
     if chat_id in user_chats:
-        return jsonify({"messages": user_chats[chat_id]["messages"]})
+        return jsonify({
+            "messages": user_chats[chat_id]["messages"]
+        })
     return jsonify({"messages": []})
 
 @app.route("/delete-chat/<chat_id>", methods=["DELETE"])
 @login_required
 def delete_chat(chat_id):
     user_id = session["user_id"]
-    if user_id in all_chats and chat_id in all_chats[user_id]:
-        del all_chats[user_id][chat_id]
+    chats = load_chats()
+    if user_id in chats and chat_id in chats[user_id]:
+        del chats[user_id][chat_id]
+        save_chats(chats)
     return jsonify({"success": True})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
