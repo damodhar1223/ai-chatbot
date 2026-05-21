@@ -1,170 +1,490 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AI Chatbot</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    body {
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #1a1a2e;
       font-family: 'Segoe UI', sans-serif;
-      background: #f0f2f5;
+      color: white;
+    }
+
+    .wrapper {
       display: flex;
-      justify-content: center;
-      align-items: center;
+      width: 100vw;
       height: 100vh;
     }
 
-    .chat-container {
-      background: white;
-      width: 450px;
-      height: 600px;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    /* SIDEBAR */
+    .sidebar {
+      width: 250px;
+      height: 100vh;
+      background: #16213e;
+      border-right: 1px solid #0f3460;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-    }
-
-    .chat-header {
-      background: #6c47ff;
-      color: white;
-      padding: 16px 20px;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .chat-messages {
-      flex: 1;
       padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      flex-shrink: 0;
     }
 
-    .message {
-      max-width: 80%;
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .user-message {
-      background: #6c47ff;
+    .sidebar-logo {
+      font-size: 18px;
+      font-weight: 700;
       color: white;
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #0f3460;
+      margin-bottom: 12px;
     }
 
-    .bot-message {
-      background: #f0f0f0;
-      color: #333;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-    }
-
-    .chat-input {
-      display: flex;
-      padding: 12px;
-      border-top: 1px solid #eee;
-      gap: 8px;
-    }
-
-    .chat-input input {
-      flex: 1;
-      padding: 10px 14px;
-      border: 1px solid #ddd;
-      border-radius: 24px;
-      outline: none;
-      font-size: 14px;
-    }
-
-    .chat-input button {
+    .new-chat-btn {
       background: #6c47ff;
       color: white;
       border: none;
-      padding: 10px 18px;
-      border-radius: 24px;
+      padding: 10px 14px;
+      border-radius: 8px;
       cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: left;
+      margin-bottom: 12px;
+    }
+
+    .new-chat-btn:hover {
+      background: #5535dd;
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #aaa;
+      font-size: 13px;
+    }
+
+    .history-item:hover {
+      background: #0f3460;
+      color: white;
+    }
+
+    .history-item.active {
+      background: #0f3460;
+      color: white;
+    }
+
+    .history-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: #ff4757;
+      cursor: pointer;
+      font-size: 14px;
+      display: none;
+      margin-left: 6px;
+    }
+
+    .history-item:hover .del-btn {
+      display: inline;
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #1a1a2e;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #16213e;
+      padding: 15px 20px;
+      border-bottom: 1px solid #0f3460;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: white;
+    }
+
+    .logout-link {
+      color: #ff4757;
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .logout-link:hover {
+      text-decoration: underline;
+    }
+
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .welcome-box {
+      margin: auto;
+      text-align: center;
+      color: #555;
+    }
+
+    .welcome-box h2 {
+      font-size: 22px;
+      color: #777;
+      margin-bottom: 8px;
+    }
+
+    .welcome-box p {
       font-size: 14px;
     }
 
-    .chat-input button:hover { background: #5535dd; }
-    .typing { color: #888; font-style: italic; font-size: 13px; }
+    .msg {
+      max-width: 72%;
+      padding: 11px 15px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .msg.user {
+      background: #6c47ff;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 3px;
+    }
+
+    .msg.bot {
+      background: #16213e;
+      color: #ddd;
+      align-self: flex-start;
+      border: 1px solid #0f3460;
+      border-bottom-left-radius: 3px;
+    }
+
+    .typing-indicator {
+      color: #555;
+      font-style: italic;
+      font-size: 13px;
+      align-self: flex-start;
+      padding: 6px 10px;
+    }
+
+    .input-bar {
+      display: flex;
+      gap: 10px;
+      padding: 14px 16px;
+      background: #16213e;
+      border-top: 1px solid #0f3460;
+      flex-shrink: 0;
+    }
+
+    .input-bar input {
+      flex: 1;
+      padding: 11px 16px;
+      border-radius: 24px;
+      border: 1px solid #0f3460;
+      background: #1a1a2e;
+      color: white;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input-bar input:focus {
+      border-color: #6c47ff;
+    }
+
+    .input-bar input::placeholder {
+      color: #555;
+    }
+
+    .input-bar input:disabled {
+      opacity: 0.4;
+    }
+
+    .input-bar button {
+      padding: 11px 22px;
+      background: #6c47ff;
+      color: white;
+      border: none;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .input-bar button:hover {
+      background: #5535dd;
+    }
+
+    .input-bar button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
+<div class="wrapper">
 
-  <div class="chat-container">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">🤖 AI Chatbot</div>
+    <button class="new-chat-btn" onclick="startNewChat()">
+      ✏️ New Chat
+    </button>
+    <div class="history-list" id="historyList">
+      <p style="color:#444;font-size:12px;text-align:center;
+      margin-top:10px;">No chats yet</p>
+    </div>
+  </div>
 
-    <!-- Header -->
-    <div class="chat-header">🤖 My ChatBot</div>
+  <!-- MAIN CHAT -->
+  <div class="main">
 
-    <!-- Messages Area -->
-    <div class="chat-messages" id="chatMessages">
-      <div class="message bot-message">Hi! I'm your AI assistant. Ask me anything! 😊</div>
+    <div class="header">
+      <span class="header-title" id="headerTitle">
+        AI Assistant
+      </span>
+      <a href="/logout" class="logout-link">🚪 Logout</a>
     </div>
 
-    <!-- Input Area -->
-    <div class="chat-input">
-      <input type="text" id="userInput" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
+    <div class="messages-area" id="messagesArea">
+      <div class="welcome-box" id="welcomeBox">
+        <h2>👋 Hello!</h2>
+        <p>Click ✏️ New Chat to start talking to AI</p>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <input
+        type="text"
+        id="msgInput"
+        placeholder="Type your message here..."
+        disabled
+      />
+      <button id="sendBtn" onclick="sendMsg()" disabled>
+        Send
+      </button>
     </div>
 
   </div>
+</div>
 
-  <script>
-    const input = document.getElementById("userInput");
-    const messages = document.getElementById("chatMessages");
+<script>
+  let activeChatId = null;
 
-    // Press Enter to send
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
+  window.onload = () => loadHistory();
 
-    // Add message bubble to screen
-    function appendMessage(text, sender) {
-      const div = document.createElement("div");
-      div.className = `message ${sender}-message`;
-      div.textContent = text;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
+  async function loadHistory() {
+    const res = await fetch("/get-chats");
+    const data = await res.json();
+    const list = document.getElementById("historyList");
+    list.innerHTML = "";
+
+    if (!data.chats || data.chats.length === 0) {
+      list.innerHTML = `<p style="color:#444;font-size:12px;
+        text-align:center;margin-top:10px;">
+        No chats yet</p>`;
+      return;
     }
 
-    // Main send function
-    async function sendMessage() {
-      const text = input.value.trim();
-      if (!text) return;
+    data.chats.forEach(chat => {
+      const div = document.createElement("div");
+      div.className = "history-item" +
+        (chat.id === activeChatId ? " active" : "");
+      div.id = "h-" + chat.id;
+      div.innerHTML = `
+        <span class="history-title"
+          onclick="openChat('${chat.id}')">
+          💬 ${chat.title}
+        </span>
+        <button class="del-btn"
+          onclick="removeChat('${chat.id}')">🗑</button>
+      `;
+      list.appendChild(div);
+    });
+  }
 
-      appendMessage(text, "user");
-      input.value = "";
+  async function startNewChat() {
+    const res = await fetch("/new-chat", { method: "POST" });
+    const data = await res.json();
+    activeChatId = data.chat_id;
 
-      // Show typing indicator
-      const typing = document.createElement("div");
-      typing.className = "typing";
-      typing.textContent = "AI is typing...";
-      typing.id = "typing";
-      messages.appendChild(typing);
-      messages.scrollTop = messages.scrollHeight;
+    clearMessages();
+    enableInput();
+    document.getElementById("headerTitle").textContent =
+      "New Chat";
+    addMsg("Hi! I'm your AI assistant. Ask me anything! 😊",
+      "bot");
 
-      // Send to Flask backend
-      const response = await fetch("/chat", {
+    await loadHistory();
+    markActive(activeChatId);
+    document.getElementById("msgInput").focus();
+  }
+
+  async function openChat(chatId) {
+    activeChatId = chatId;
+    clearMessages();
+
+    const res = await fetch("/get-messages/" + chatId);
+    const data = await res.json();
+
+    if (!data.messages || data.messages.length === 0) {
+      addMsg(
+        "Hi! I'm your AI assistant. Ask me anything! 😊",
+        "bot");
+    } else {
+      data.messages.forEach(m => {
+        addMsg(m.content, m.role === "user" ? "user" : "bot");
+      });
+    }
+
+    enableInput();
+    markActive(chatId);
+    document.getElementById("msgInput").focus();
+  }
+
+  async function removeChat(chatId) {
+    await fetch("/delete-chat/" + chatId,
+      { method: "DELETE" });
+
+    if (activeChatId === chatId) {
+      activeChatId = null;
+      clearMessages();
+      disableInput();
+      document.getElementById("headerTitle").textContent =
+        "AI Assistant";
+
+      const area = document.getElementById("messagesArea");
+      area.innerHTML = `
+        <div class="welcome-box" id="welcomeBox">
+          <h2>👋 Hello!</h2>
+          <p>Click ✏️ New Chat to start talking to AI</p>
+        </div>`;
+    }
+
+    await loadHistory();
+  }
+
+  function markActive(chatId) {
+    document.querySelectorAll(".history-item")
+      .forEach(i => i.classList.remove("active"));
+    const el = document.getElementById("h-" + chatId);
+    if (el) el.classList.add("active");
+  }
+
+  function clearMessages() {
+    document.getElementById("messagesArea").innerHTML = "";
+  }
+
+  function enableInput() {
+    document.getElementById("msgInput").disabled = false;
+    document.getElementById("sendBtn").disabled = false;
+  }
+
+  function disableInput() {
+    document.getElementById("msgInput").disabled = true;
+    document.getElementById("sendBtn").disabled = true;
+  }
+
+  function addMsg(text, type) {
+    const area = document.getElementById("messagesArea");
+    const wb = document.getElementById("welcomeBox");
+    if (wb) wb.remove();
+
+    const div = document.createElement("div");
+    div.className = "msg " + type;
+    div.textContent = text;
+    area.appendChild(div);
+    area.scrollTop = area.scrollHeight;
+  }
+
+  async function sendMsg() {
+    if (!activeChatId) return;
+
+    const input = document.getElementById("msgInput");
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMsg(text, "user");
+    input.value = "";
+
+    const area = document.getElementById("messagesArea");
+    const typing = document.createElement("div");
+    typing.className = "typing-indicator";
+    typing.id = "typing";
+    typing.textContent = "AI is typing...";
+    area.appendChild(typing);
+    area.scrollTop = area.scrollHeight;
+
+    try {
+      const res = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({
+          message: text,
+          chat_id: activeChatId
+        })
       });
 
-      // Remove typing indicator
       document.getElementById("typing")?.remove();
+      const data = await res.json();
+      addMsg(data.reply, "bot");
 
-      // Show Claude's reply
-      const data = await response.json();
-      appendMessage(data.reply, "bot");
+      if (data.title) {
+        document.getElementById("headerTitle")
+          .textContent = data.title;
+      }
+
+      await loadHistory();
+      markActive(activeChatId);
+
+    } catch(e) {
+      document.getElementById("typing")?.remove();
+      addMsg("Sorry, something went wrong!", "bot");
     }
-  </script>
+  }
 
+  document.getElementById("msgInput")
+    .addEventListener("keypress", e => {
+      if (e.key === "Enter") sendMsg();
+    });
+</script>
 </body>
 </html>
