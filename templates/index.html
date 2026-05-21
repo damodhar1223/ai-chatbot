@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AI Chatbot</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
       width: 100%;
@@ -23,18 +19,21 @@
       display: flex;
       width: 100vw;
       height: 100vh;
+      overflow: hidden;
     }
 
-    /* SIDEBAR */
+    /* ── SIDEBAR ── */
     .sidebar {
-      width: 250px;
+      width: 260px;
+      min-width: 260px;
       height: 100vh;
       background: #16213e;
       border-right: 1px solid #0f3460;
       display: flex;
       flex-direction: column;
       padding: 16px;
-      flex-shrink: 0;
+      transition: transform 0.3s ease;
+      z-index: 100;
     }
 
     .sidebar-logo {
@@ -44,24 +43,35 @@
       padding-bottom: 12px;
       border-bottom: 1px solid #0f3460;
       margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close-sidebar {
+      display: none;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 22px;
+      cursor: pointer;
     }
 
     .new-chat-btn {
       background: #6c47ff;
       color: white;
       border: none;
-      padding: 10px 14px;
+      padding: 11px 14px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 14px;
       font-weight: 600;
       text-align: left;
       margin-bottom: 12px;
+      width: 100%;
     }
 
-    .new-chat-btn:hover {
-      background: #5535dd;
-    }
+    .new-chat-btn:hover { background: #5535dd; }
 
     .history-list {
       flex: 1;
@@ -82,11 +92,7 @@
       font-size: 13px;
     }
 
-    .history-item:hover {
-      background: #0f3460;
-      color: white;
-    }
-
+    .history-item:hover,
     .history-item.active {
       background: #0f3460;
       color: white;
@@ -109,11 +115,9 @@
       margin-left: 6px;
     }
 
-    .history-item:hover .del-btn {
-      display: inline;
-    }
+    .history-item:hover .del-btn { display: inline; }
 
-    /* MAIN */
+    /* ── MAIN ── */
     .main {
       flex: 1;
       height: 100vh;
@@ -121,47 +125,69 @@
       flex-direction: column;
       background: #1a1a2e;
       overflow: hidden;
+      min-width: 0;
     }
 
     .header {
       background: #16213e;
-      padding: 15px 20px;
+      padding: 14px 16px;
       border-bottom: 1px solid #0f3460;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-shrink: 0;
+      gap: 10px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 22px;
+      cursor: pointer;
+      flex-shrink: 0;
     }
 
     .header-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
       color: white;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .logout-link {
       color: #ff4757;
       font-size: 13px;
       text-decoration: none;
-    }
-
-    .logout-link:hover {
-      text-decoration: underline;
+      flex-shrink: 0;
+      font-weight: 500;
     }
 
     .messages-area {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
     .welcome-box {
       margin: auto;
       text-align: center;
       color: #555;
+      padding: 20px;
     }
 
     .welcome-box h2 {
@@ -170,13 +196,11 @@
       margin-bottom: 8px;
     }
 
-    .welcome-box p {
-      font-size: 14px;
-    }
+    .welcome-box p { font-size: 14px; }
 
     .msg {
-      max-width: 72%;
-      padding: 11px 15px;
+      max-width: 80%;
+      padding: 10px 14px;
       border-radius: 12px;
       font-size: 14px;
       line-height: 1.6;
@@ -208,8 +232,8 @@
 
     .input-bar {
       display: flex;
-      gap: 10px;
-      padding: 14px 16px;
+      gap: 8px;
+      padding: 12px 14px;
       background: #16213e;
       border-top: 1px solid #0f3460;
       flex-shrink: 0;
@@ -224,22 +248,15 @@
       color: white;
       font-size: 14px;
       outline: none;
+      min-width: 0;
     }
 
-    .input-bar input:focus {
-      border-color: #6c47ff;
-    }
-
-    .input-bar input::placeholder {
-      color: #555;
-    }
-
-    .input-bar input:disabled {
-      opacity: 0.4;
-    }
+    .input-bar input:focus { border-color: #6c47ff; }
+    .input-bar input::placeholder { color: #555; }
+    .input-bar input:disabled { opacity: 0.4; }
 
     .input-bar button {
-      padding: 11px 22px;
+      padding: 11px 18px;
       background: #6c47ff;
       color: white;
       border: none;
@@ -247,47 +264,106 @@
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
-    .input-bar button:hover {
-      background: #5535dd;
-    }
-
+    .input-bar button:hover { background: #5535dd; }
     .input-bar button:disabled {
       opacity: 0.4;
       cursor: not-allowed;
     }
+
+    /* Overlay for mobile */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.5);
+      z-index: 99;
+    }
+
+    /* ── MOBILE STYLES ── */
+    @media (max-width: 650px) {
+
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+        box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .close-sidebar {
+        display: block;
+      }
+
+      .menu-btn {
+        display: block;
+      }
+
+      .overlay.show {
+        display: block;
+      }
+
+      .msg {
+        max-width: 90%;
+      }
+
+      .input-bar button {
+        padding: 11px 14px;
+        font-size: 13px;
+      }
+
+      .header-title {
+        font-size: 15px;
+      }
+    }
   </style>
 </head>
 <body>
+
+<!-- Overlay for mobile sidebar -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
 <div class="wrapper">
 
   <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="sidebar-logo">🤖 AI Chatbot</div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      🤖 AI Chatbot
+      <button class="close-sidebar" onclick="closeSidebar()">✕</button>
+    </div>
     <button class="new-chat-btn" onclick="startNewChat()">
       ✏️ New Chat
     </button>
     <div class="history-list" id="historyList">
       <p style="color:#444;font-size:12px;text-align:center;
-      margin-top:10px;">No chats yet</p>
+        margin-top:10px;">No chats yet</p>
     </div>
   </div>
 
-  <!-- MAIN CHAT -->
+  <!-- MAIN -->
   <div class="main">
 
     <div class="header">
-      <span class="header-title" id="headerTitle">
-        AI Assistant
-      </span>
+      <div class="header-left">
+        <button class="menu-btn" onclick="openSidebar()">☰</button>
+        <span class="header-title" id="headerTitle">AI Assistant</span>
+      </div>
       <a href="/logout" class="logout-link">🚪 Logout</a>
     </div>
 
     <div class="messages-area" id="messagesArea">
       <div class="welcome-box" id="welcomeBox">
         <h2>👋 Hello!</h2>
-        <p>Click ✏️ New Chat to start talking to AI</p>
+        <p>Tap ✏️ New Chat to start talking to AI</p>
       </div>
     </div>
 
@@ -295,7 +371,7 @@
       <input
         type="text"
         id="msgInput"
-        placeholder="Type your message here..."
+        placeholder="Type your message..."
         disabled
       />
       <button id="sendBtn" onclick="sendMsg()" disabled>
@@ -310,6 +386,18 @@
   let activeChatId = null;
 
   window.onload = () => loadHistory();
+
+  // Open sidebar on mobile
+  function openSidebar() {
+    document.getElementById("sidebar").classList.add("open");
+    document.getElementById("overlay").classList.add("show");
+  }
+
+  // Close sidebar on mobile
+  function closeSidebar() {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  }
 
   async function loadHistory() {
     const res = await fetch("/get-chats");
@@ -348,14 +436,17 @@
 
     clearMessages();
     enableInput();
-    document.getElementById("headerTitle").textContent =
-      "New Chat";
-    addMsg("Hi! I'm your AI assistant. Ask me anything! 😊",
-      "bot");
+    document.getElementById("headerTitle")
+      .textContent = "New Chat";
+    addMsg(
+      "Hi! I'm your AI assistant. Ask me anything! 😊",
+      "bot"
+    );
 
     await loadHistory();
     markActive(activeChatId);
     document.getElementById("msgInput").focus();
+    closeSidebar(); // close sidebar on mobile after selecting
   }
 
   async function openChat(chatId) {
@@ -368,16 +459,19 @@
     if (!data.messages || data.messages.length === 0) {
       addMsg(
         "Hi! I'm your AI assistant. Ask me anything! 😊",
-        "bot");
+        "bot"
+      );
     } else {
       data.messages.forEach(m => {
-        addMsg(m.content, m.role === "user" ? "user" : "bot");
+        addMsg(m.content,
+          m.role === "user" ? "user" : "bot");
       });
     }
 
     enableInput();
     markActive(chatId);
     document.getElementById("msgInput").focus();
+    closeSidebar(); // close sidebar on mobile after selecting
   }
 
   async function removeChat(chatId) {
@@ -388,14 +482,13 @@
       activeChatId = null;
       clearMessages();
       disableInput();
-      document.getElementById("headerTitle").textContent =
-        "AI Assistant";
-
-      const area = document.getElementById("messagesArea");
-      area.innerHTML = `
+      document.getElementById("headerTitle")
+        .textContent = "AI Assistant";
+      document.getElementById("messagesArea")
+        .innerHTML = `
         <div class="welcome-box" id="welcomeBox">
           <h2>👋 Hello!</h2>
-          <p>Click ✏️ New Chat to start talking to AI</p>
+          <p>Tap ✏️ New Chat to start talking to AI</p>
         </div>`;
     }
 
@@ -424,10 +517,10 @@
   }
 
   function addMsg(text, type) {
-    const area = document.getElementById("messagesArea");
     const wb = document.getElementById("welcomeBox");
     if (wb) wb.remove();
 
+    const area = document.getElementById("messagesArea");
     const div = document.createElement("div");
     div.className = "msg " + type;
     div.textContent = text;
