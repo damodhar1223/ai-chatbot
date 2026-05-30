@@ -1,24 +1,18 @@
 {
   "damodharkrishnach@gmail.com": {
-    "43808774": {
-      "id": "43808774",
-      "title": "hi",
+    "6020e51a": {
+      "id": "6020e51a",
+      "title": "what is .next",
       "messages": [
         {
           "role": "user",
-          "content": "hi"
+          "content": "what is .next"
         },
         {
           "role": "assistant",
-          "content": "Hello. It's nice to meet you. Is there something I can help you with or would you like to chat?"
+          "content": "`.next` is a popular JavaScript framework used for building server-side rendered (SSR), static, and performance-optimized web applications. It's developed by Vercel (formerly Zeit) and is widely used for creating fast, scalable, and SEO-friendly websites.\n\nKey features of Next.js include:\n\n1. **Server-Side Rendering (SSR)**: Next.js allows you to render your React components on the server, which improves SEO and provides faster page loads.\n2. **Static Site Generation (SSG)**: Next.js can also generate static HTML files for your application, which can be served directly by a web server or CDN, reducing the need for server-side rendering.\n3. **Performance Optimization**: Next.js includes built-in optimization features, such as code splitting, tree shaking, and image optimization, to ensure your application loads quickly and efficiently.\n4. **Internationalization (i18n) and Localization (L10n)**: Next.js provides built-in support for internationalization and localization, making it easy to create multilingual websites.\n5. **API Routes**: Next.js allows you to create API routes, which enable you to handle server-side logic and provide data to your client-side application.\n6. **Support for React**: Next.js is built on top of React, so you can use your existing React knowledge and components with Next.js.\n\nSome benefits of using Next.js include:\n\n* Improved SEO\n* Faster page loads\n* Enhanced user experience\n* Simplified development and deployment\n* Support for modern web development features, such as TypeScript and Webpack\n\nNext.js is widely used in the industry, and many popular websites, such as GitHub, HashiCorp, and Verizon, use Next.js to power their web applications.\n\nIs there something specific you'd like to know about Next.js, or would you like to know more about its features and benefits?"
         }
       ],
-      "created_at": "21 May 2026 17:20"
-    },
-    "6020e51a": {
-      "id": "6020e51a",
-      "title": "New Chat",
-      "messages": [],
       "created_at": "21 May 2026 17:41"
     }
   }

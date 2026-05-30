@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: white;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .top-bar {
+      background: #1a1a2e;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ff4757;
+    }
+    .top-bar h1 {
+      font-size: 20px;
+      color: white;
+    }
+    .top-bar span {
+      color: #ff4757;
+      font-size: 13px;
+    }
+    .logout-btn {
+      background: #ff4757;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .content { padding: 24px; }
+
+    /* STAT CARDS */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 20px 24px;
+      border: 1px solid #0f3460;
+      text-align: center;
+    }
+    .stat-icon { font-size: 32px; margin-bottom: 8px; }
+    .stat-number {
+      font-size: 36px;
+      font-weight: 700;
+      color: #6c47ff;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      color: #888;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* USERS TABLE */
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: white;
+      border-left: 4px solid #6c47ff;
+      padding-left: 12px;
+    }
+
+    .table-wrapper {
+      background: #1a1a2e;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #0f3460;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+
+    thead {
+      background: #16213e;
+    }
+
+    th {
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    td {
+      padding: 14px 16px;
+      font-size: 14px;
+      border-top: 1px solid #0f3460;
+      color: #ddd;
+    }
+
+    tr:hover td { background: #16213e; }
+
+    .badge {
+      background: #6c47ff;
+      color: white;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-msg {
+      background: #2ed573;
+      color: #111;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .del-user-btn {
+      background: rgba(255,71,87,0.15);
+      color: #ff4757;
+      border: 1px solid #ff4757;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .del-user-btn:hover {
+      background: #ff4757;
+      color: white;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    /* MOBILE */
+    @media (max-width: 600px) {
+      .content { padding: 16px; }
+      .top-bar h1 { font-size: 16px; }
+      .stat-number { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <h1>🛡️ Admin Dashboard</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span>👤 Admin</span>
+      <a href="/admin/logout" class="logout-btn">Logout</a>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-number">{{ total_users }}</div>
+        <div class="stat-label">Total Users</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💬</div>
+        <div class="stat-number">{{ total_chats }}</div>
+        <div class="stat-label">Total Chats</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📨</div>
+        <div class="stat-number">{{ total_messages }}</div>
+        <div class="stat-label">Total Messages</div>
+      </div>
+    </div>
+
+    <!-- USERS TABLE -->
+    <div class="section-title">📋 Registered Users</div>
+
+    <div class="table-wrapper">
+      {% if users %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Joined</th>
+            <th>Last Login</th>
+            <th>Chats</th>
+            <th>Messages</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="usersTable">
+          {% for user in users %}
+          <tr id="row-{{ loop.index }}">
+            <td>{{ loop.index }}</td>
+            <td>{{ user.name }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.joined }}</td>
+            <td>{{ user.last_login }}</td>
+            <td><span class="badge">{{ user.total_chats }}</span></td>
+            <td><span class="badge-msg">{{ user.total_messages }}</span></td>
+            <td>
+              <button class="del-user-btn"
+                onclick="deleteUser('{{ user.email }}', {{ loop.index }})">
+                🗑 Delete
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">
+        No users registered yet!
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <script>
+    async function deleteUser(email, rowIndex) {
+      if (!confirm(
+        `Are you sure you want to delete user: ${email}?`
+      )) return;
+
+      const res = await fetch(
+        `/admin/delete-user/${email}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        const row = document.getElementById(
+          "row-" + rowIndex
+        );
+        if (row) row.remove();
+        alert("User deleted successfully!");
+        location.reload();
+      }
+    }
+  </script>
+
+</body>
+</html>

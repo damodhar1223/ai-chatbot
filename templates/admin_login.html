@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: #1a1a2e;
+      padding: 40px;
+      border-radius: 16px;
+      width: 360px;
+      border: 1px solid #ff4757;
+      box-shadow: 0 0 30px rgba(255,71,87,0.2);
+    }
+    .logo {
+      text-align: center;
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      text-align: center;
+      color: white;
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #ff4757;
+      font-size: 12px;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .input-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      color: #aaa;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0f0f1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus { border-color: #ff4757; }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #ff4757;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn:hover { background: #e84057; }
+    .error {
+      background: rgba(255,71,87,0.15);
+      color: #ff4757;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+      text-align: center;
+    }
+    .back-link {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+    }
+    .back-link a {
+      color: #6c47ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🛡️</div>
+    <h2>Admin Panel</h2>
+    <p class="subtitle">⚠️ Restricted Access</p>
+
+    <div class="error" id="errorMsg"></div>
+
+    <div class="input-group">
+      <label>Admin Username</label>
+      <input type="text" id="username" placeholder="Enter username"/>
+    </div>
+    <div class="input-group">
+      <label>Admin Password</label>
+      <input type="password" id="password" placeholder="Enter password"/>
+    </div>
+
+    <button class="btn" onclick="adminLogin()">
+      🔐 Login as Admin
+    </button>
+
+    <div class="back-link">
+      <a href="/login">← Back to User Login</a>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("keypress", e => {
+      if (e.key === "Enter") adminLogin();
+    });
+
+    async function adminLogin() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorMsg = document.getElementById("errorMsg");
+
+      if (!username || !password) {
+        errorMsg.textContent = "Please fill all fields!";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      const res = await fetch("/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = "/admin/dashboard";
+      } else {
+        errorMsg.textContent = data.error;
+        errorMsg.style.display = "block";
+      }
+    }
+  </script>
+</body>
+</html>

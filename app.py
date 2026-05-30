@@ -15,11 +15,14 @@ app.secret_key = "chatbot-secret-key-123"
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# ── File paths for permanent storage ──
+# ── File Storage ──
 USERS_FILE = "users.json"
 CHATS_FILE = "chats.json"
 
-# ── Load data from files ──
+# ── Admin Credentials ──
+ADMIN_USERNAME = "Damodhar Krishna Chappa"
+ADMIN_PASSWORD = "Damodhar@2504"
+
 def load_users():
     if os.path.exists(USERS_FILE):
         with open(USERS_FILE, "r") as f:
@@ -40,7 +43,6 @@ def save_chats(chats):
     with open(CHATS_FILE, "w") as f:
         json.dump(chats, f, indent=2)
 
-# ── Login required decorator ──
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -49,7 +51,15 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# ─── AUTH ROUTES ───────────────────────
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "admin" not in session:
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+# ─── USER AUTH ROUTES ──────────────────
 
 @app.route("/")
 def index():
@@ -63,19 +73,19 @@ def login():
         data = request.json
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
-
         users = load_users()
-
         if email not in users:
-            return jsonify({"error": "Email not found! Please register first."}), 401
-
+            return jsonify({"error": "Email not found! Please register."}), 401
         if not check_password_hash(users[email]["password"], password):
-            return jsonify({"error": "Wrong password! Try again."}), 401
-
+            return jsonify({"error": "Wrong password!"}), 401
         session["user_id"] = email
         session["username"] = users[email]["name"]
-        return jsonify({"success": True})
 
+        # Track last login
+        users[email]["last_login"] = datetime.now().strftime("%d %b %Y %H:%M")
+        save_users(users)
+
+        return jsonify({"success": True})
     return render_template("login.html")
 
 @app.route("/register", methods=["GET", "POST"])
@@ -88,24 +98,22 @@ def register():
 
         if not name or not email or not password:
             return jsonify({"error": "Please fill all fields!"}), 400
-
         if len(password) < 6:
-            return jsonify({"error": "Password must be at least 6 characters!"}), 400
+            return jsonify({"error": "Password must be 6+ characters!"}), 400
 
         users = load_users()
-
         if email in users:
-            return jsonify({"error": "Email already registered! Please login."}), 400
+            return jsonify({"error": "Email already registered!"}), 400
 
         users[email] = {
             "name": name,
             "email": email,
             "password": generate_password_hash(password),
-            "created_at": datetime.now().strftime("%d %b %Y")
+            "joined": datetime.now().strftime("%d %b %Y %H:%M"),
+            "last_login": datetime.now().strftime("%d %b %Y %H:%M")
         }
         save_users(users)
 
-        # Create empty chat space for user
         chats = load_chats()
         chats[email] = {}
         save_chats(chats)
@@ -113,12 +121,12 @@ def register():
         session["user_id"] = email
         session["username"] = name
         return jsonify({"success": True})
-
     return render_template("register.html")
 
 @app.route("/logout")
 def logout():
-    session.clear()
+    session.pop("user_id", None)
+    session.pop("username", None)
     return redirect(url_for("login"))
 
 # ─── CHAT ROUTES ───────────────────────
@@ -134,12 +142,9 @@ def home():
 def new_chat():
     user_id = session["user_id"]
     chat_id = str(uuid.uuid4())[:8]
-
     chats = load_chats()
-
     if user_id not in chats:
         chats[user_id] = {}
-
     chats[user_id][chat_id] = {
         "id": chat_id,
         "title": "New Chat",
@@ -147,7 +152,6 @@ def new_chat():
         "created_at": datetime.now().strftime("%d %b %Y %H:%M")
     }
     save_chats(chats)
-
     return jsonify({"chat_id": chat_id})
 
 @app.route("/chat", methods=["POST"])
@@ -163,10 +167,8 @@ def chat():
             return jsonify({"error": "Missing data"}), 400
 
         chats = load_chats()
-
         if user_id not in chats:
             chats[user_id] = {}
-
         if chat_id not in chats[user_id]:
             chats[user_id][chat_id] = {
                 "id": chat_id,
@@ -190,21 +192,17 @@ def chat():
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful friendly AI assistant."
-                }
+                {"role": "system",
+                 "content": "You are a helpful friendly AI assistant."}
             ] + chats[user_id][chat_id]["messages"],
             max_tokens=1024
         )
 
         assistant_message = response.choices[0].message.content
-
         chats[user_id][chat_id]["messages"].append({
             "role": "assistant",
             "content": assistant_message
         })
-
         save_chats(chats)
 
         return jsonify({
@@ -217,32 +215,27 @@ def chat():
         print("ERROR:", str(e))
         return jsonify({"reply": "Error: " + str(e)}), 500
 
-@app.route("/get-chats", methods=["GET"])
+@app.route("/get-chats")
 @login_required
 def get_chats():
     user_id = session["user_id"]
     chats = load_chats()
     user_chats = chats.get(user_id, {})
     chat_list = [
-        {
-            "id": c["id"],
-            "title": c["title"],
-            "created_at": c["created_at"]
-        }
+        {"id": c["id"], "title": c["title"],
+         "created_at": c["created_at"]}
         for c in user_chats.values()
     ]
     return jsonify({"chats": chat_list[::-1]})
 
-@app.route("/get-messages/<chat_id>", methods=["GET"])
+@app.route("/get-messages/<chat_id>")
 @login_required
 def get_messages(chat_id):
     user_id = session["user_id"]
     chats = load_chats()
     user_chats = chats.get(user_id, {})
     if chat_id in user_chats:
-        return jsonify({
-            "messages": user_chats[chat_id]["messages"]
-        })
+        return jsonify({"messages": user_chats[chat_id]["messages"]})
     return jsonify({"messages": []})
 
 @app.route("/delete-chat/<chat_id>", methods=["DELETE"])
@@ -254,6 +247,89 @@ def delete_chat(chat_id):
         del chats[user_id][chat_id]
         save_chats(chats)
     return jsonify({"success": True})
+
+# ─── ADMIN ROUTES ──────────────────────
+
+@app.route("/admin", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        data = request.json
+        username = data.get("username", "")
+        password = data.get("password", "")
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session["admin"] = True
+            return jsonify({"success": True})
+        return jsonify({"error": "Wrong admin credentials!"}), 401
+
+    return render_template("admin_login.html")
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect(url_for("admin_login"))
+
+@app.route("/admin/dashboard")
+@admin_required
+def admin_dashboard():
+    users = load_users()
+    chats = load_chats()
+
+    total_users = len(users)
+    total_chats = sum(len(v) for v in chats.values())
+    total_messages = sum(
+        len(chat["messages"])
+        for user_chats in chats.values()
+        for chat in user_chats.values()
+    )
+
+    user_list = []
+    for email, user in users.items():
+        user_chats = chats.get(email, {})
+        user_msg_count = sum(
+            len(c["messages"]) for c in user_chats.values()
+        )
+        user_list.append({
+            "name": user["name"],
+            "email": email,
+            "joined": user.get("joined", "N/A"),
+            "last_login": user.get("last_login", "N/A"),
+            "total_chats": len(user_chats),
+            "total_messages": user_msg_count
+        })
+
+    return render_template("admin_dashboard.html",
+        total_users=total_users,
+        total_chats=total_chats,
+        total_messages=total_messages,
+        users=user_list
+    )
+
+@app.route("/admin/delete-user/<email>", methods=["DELETE"])
+@admin_required
+def admin_delete_user(email):
+    users = load_users()
+    chats = load_chats()
+    if email in users:
+        del users[email]
+        save_users(users)
+    if email in chats:
+        del chats[email]
+        save_chats(chats)
+    return jsonify({"success": True})
+
+@app.route("/admin/user-chats/<email>")
+@admin_required
+def admin_user_chats(email):
+    chats = load_chats()
+    user_chats = chats.get(email, {})
+    chat_list = [
+        {"id": c["id"], "title": c["title"],
+         "messages": len(c["messages"]),
+         "created_at": c["created_at"]}
+        for c in user_chats.values()
+    ]
+    return jsonify({"chats": chat_list[::-1]})
 
 if __name__ == "__main__":
     app.run(
