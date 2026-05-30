@@ -5,5 +5,12 @@
     "password": "scrypt:32768:8:1$nGRGHBj3DBSIctD0$43d06d8fa0072fa274298cb27d78aba95ab5f969b58157f833cfd646e9ecf37d270760d9819033da83a2978778a1467e4b467240b1abec3fd0e899129fc278db",
     "created_at": "21 May 2026",
     "last_login": "30 May 2026 15:23"
+  },
+  "2200090036@kluniversity.in": {
+    "name": "Krishna",
+    "email": "2200090036@kluniversity.in",
+    "password": "scrypt:32768:8:1$OVPo1GdPhTyGkpDL$dfe4864c308d0e2843435905f3c6e425f2abb6c44c919c1c6bb712b1f4c5db761f72a7299627fd1b837fd7ca7260a72b541f1a2059941ecf4c2f24fcc3ffa2d0",
+    "joined": "30 May 2026 16:32",
+    "last_login": "30 May 2026 16:32"
   }
 }
