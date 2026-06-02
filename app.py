@@ -1,8 +1,12 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import (Flask, request, jsonify,
+    render_template, session, redirect, url_for)
 from dotenv import load_dotenv
 from groq import Groq
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
+from werkzeug.security import (
+    generate_password_hash, check_password_hash)
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import os
 import uuid
 import json
@@ -17,33 +21,31 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = "chatbot-secret-key-123"
 
-# ── Mail Configuration ──
-app.config["MAIL_SERVER"] = "smtp.gmail.com"
-app.config["MAIL_PORT"] = 465
-app.config["MAIL_USE_TLS"] = False
-app.config["MAIL_USE_SSL"] = True
-app.config["MAIL_USERNAME"] = os.getenv("MAIL_EMAIL")
-app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
-app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_EMAIL")
-app.config["MAIL_TIMEOUT"] = 30
-
-mail = Mail(app)
-
+# ── Groq Client ──
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# ── IST Timezone ──
-def get_ist_time():
-    ist = pytz.timezone("Asia/Kolkata")
-    return datetime.now(ist).strftime("%d %b %Y %I:%M %p IST")
+# ── Mail Config ──
+MAIL_EMAIL = os.getenv("MAIL_EMAIL")
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+
+# ── Admin Credentials ──
+ADMIN_USERNAME = "Damodhar Krishna"
+ADMIN_PASSWORD = "Damodhar@2504"
 
 # ── File Storage ──
 USERS_FILE = "users.json"
 CHATS_FILE = "chats.json"
 OTP_FILE = "otps.json"
 
-# ── Admin Credentials ──
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
+# ─────────────────────────────────────────
+# HELPER FUNCTIONS
+# ─────────────────────────────────────────
+
+def get_ist_time():
+    ist = pytz.timezone("Asia/Kolkata")
+    return datetime.now(ist).strftime(
+        "%d %b %Y %I:%M %p IST"
+    )
 
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -76,7 +78,127 @@ def save_otps(otps):
         json.dump(otps, f, indent=2)
 
 def generate_otp():
-    return "".join(random.choices(string.digits, k=6))
+    return "".join(
+        random.choices(string.digits, k=6)
+    )
+
+def send_otp_email(to_email, otp):
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = \
+            "Your OTP Code - AI Chatbot"
+        msg["From"] = MAIL_EMAIL
+        msg["To"] = to_email
+
+        # Plain text version
+        text = f"""
+Your OTP Code: {otp}
+Valid for 10 minutes only.
+Sent at {get_ist_time()}
+
+If you did not request this,
+please ignore this email.
+        """
+
+        # HTML version
+        html = f"""
+        <div style="font-family:Arial,sans-serif;
+            max-width:500px; margin:0 auto;
+            background:#1a1a2e; color:white;
+            padding:30px; border-radius:12px;
+            border:1px solid #6c47ff;">
+
+            <h2 style="color:#6c47ff;
+                text-align:center;
+                margin-bottom:4px;">
+                🤖 AI Chatbot
+            </h2>
+
+            <h3 style="text-align:center;
+                color:white;
+                margin-bottom:16px;">
+                Password Reset OTP
+            </h3>
+
+            <p style="color:#aaa;
+                text-align:center;
+                margin-bottom:20px;">
+                Use this OTP to reset
+                your password
+            </p>
+
+            <div style="background:#16213e;
+                border:2px solid #6c47ff;
+                border-radius:12px;
+                padding:24px;
+                text-align:center;
+                margin:20px 0;">
+
+                <p style="color:#888;
+                    font-size:13px;
+                    margin-bottom:8px;">
+                    YOUR OTP CODE
+                </p>
+
+                <h1 style="color:#6c47ff;
+                    font-size:48px;
+                    letter-spacing:10px;
+                    margin:0;
+                    font-weight:700;">
+                    {otp}
+                </h1>
+            </div>
+
+            <p style="color:#ff4757;
+                text-align:center;
+                font-size:13px;
+                margin:16px 0;">
+                ⚠️ Valid for 10 minutes only
+            </p>
+
+            <hr style="border:none;
+                border-top:1px solid #333;
+                margin:20px 0;">
+
+            <p style="color:#555;
+                text-align:center;
+                font-size:12px;">
+                If you did not request this,
+                please ignore this email.
+            </p>
+
+            <p style="color:#444;
+                text-align:center;
+                font-size:11px;
+                margin-top:8px;">
+                Sent at {get_ist_time()}
+            </p>
+        </div>
+        """
+
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+
+        # Send via Gmail SMTP SSL
+        with smtplib.SMTP_SSL(
+            "smtp.gmail.com", 465
+        ) as server:
+            server.login(MAIL_EMAIL, MAIL_PASSWORD)
+            server.sendmail(
+                MAIL_EMAIL,
+                to_email,
+                msg.as_string()
+            )
+
+        print(f"✅ OTP sent to {to_email}")
+        return True
+
+    except smtplib.SMTPAuthenticationError:
+        print("❌ Gmail Auth Error!")
+        return False
+    except Exception as e:
+        print(f"❌ Email Error: {str(e)}")
+        return False
 
 def login_required(f):
     @wraps(f)
@@ -90,11 +212,14 @@ def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if "admin" not in session:
-            return redirect(url_for("admin_login"))
+            return redirect(
+                url_for("admin_login"))
         return f(*args, **kwargs)
     return decorated
 
-# ─── USER AUTH ROUTES ──────────────────
+# ─────────────────────────────────────────
+# USER AUTH ROUTES
+# ─────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -106,44 +231,66 @@ def index():
 def login():
     if request.method == "POST":
         data = request.json
-        email = data.get("email", "").strip().lower()
+        email = data.get(
+            "email", "").strip().lower()
         password = data.get("password", "")
         users = load_users()
 
         if email not in users:
-            return jsonify({"error": "Email not found! Please register."}), 401
-        if not check_password_hash(users[email]["password"], password):
-            return jsonify({"error": "Wrong password!"}), 401
+            return jsonify({
+                "error": "Email not found! "
+                         "Please register."
+            }), 401
+
+        if not check_password_hash(
+            users[email]["password"], password
+        ):
+            return jsonify({
+                "error": "Wrong password!"
+            }), 401
 
         session["user_id"] = email
         session["username"] = users[email]["name"]
-        users[email]["last_login"] = get_ist_time()
+        users[email]["last_login"] = \
+            get_ist_time()
         save_users(users)
-
         return jsonify({"success": True})
+
     return render_template("login.html")
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register",
+           methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         data = request.json
         name = data.get("name", "").strip()
-        email = data.get("email", "").strip().lower()
+        email = data.get(
+            "email", "").strip().lower()
         password = data.get("password", "")
 
         if not name or not email or not password:
-            return jsonify({"error": "Please fill all fields!"}), 400
+            return jsonify({
+                "error": "Please fill all fields!"
+            }), 400
+
         if len(password) < 6:
-            return jsonify({"error": "Password must be 6+ characters!"}), 400
+            return jsonify({
+                "error": "Password must be "
+                         "6+ characters!"
+            }), 400
 
         users = load_users()
         if email in users:
-            return jsonify({"error": "Email already registered!"}), 400
+            return jsonify({
+                "error": "Email already "
+                         "registered!"
+            }), 400
 
         users[email] = {
             "name": name,
             "email": email,
-            "password": generate_password_hash(password),
+            "password": generate_password_hash(
+                password),
             "joined": get_ist_time(),
             "last_login": get_ist_time()
         }
@@ -165,176 +312,144 @@ def logout():
     session.pop("username", None)
     return redirect(url_for("login"))
 
-# ─── FORGOT PASSWORD ROUTES ────────────
+# ─────────────────────────────────────────
+# FORGOT PASSWORD ROUTES
+# ─────────────────────────────────────────
 
-@app.route("/forgot-password", methods=["GET", "POST"])
+@app.route("/forgot-password",
+           methods=["GET", "POST"])
 def forgot_password():
     if request.method == "POST":
         data = request.json
-        email = data.get("email", "").strip().lower()
+        email = data.get(
+            "email", "").strip().lower()
         users = load_users()
 
         if email not in users:
-            return jsonify({"error": "Email not found! Please register first."}), 404
+            return jsonify({
+                "error": "Email not found! "
+                         "Please register first."
+            }), 404
 
         # Generate 6-digit OTP
         otp = generate_otp()
 
-        # Save OTP with timestamp
+        # Save OTP
         otps = load_otps()
         otps[email] = {
             "otp": otp,
-            "created_at": get_ist_time(),
-            "expires_at": get_ist_time()
+            "created_at": get_ist_time()
         }
         save_otps(otps)
 
         # Send OTP email
-        try:
-            msg = Message(
-                subject="🔐 Your Password Reset OTP - AI Chatbot",
-                recipients=[email]
-            )
-            msg.html = f"""
-            <div style="font-family: Arial, sans-serif;
-                max-width: 500px; margin: 0 auto;
-                background: #1a1a2e; color: white;
-                padding: 30px; border-radius: 12px;">
+        success = send_otp_email(email, otp)
 
-                <h2 style="color: #6c47ff; text-align: center;">
-                    🤖 AI Chatbot
-                </h2>
-
-                <h3 style="text-align: center; color: white;">
-                    Password Reset OTP
-                </h3>
-
-                <p style="color: #aaa; text-align: center;">
-                    You requested to reset your password.
-                    Use the OTP below:
-                </p>
-
-                <div style="background: #16213e;
-                    border: 2px solid #6c47ff;
-                    border-radius: 12px;
-                    padding: 20px;
-                    text-align: center;
-                    margin: 20px 0;">
-                    <p style="color: #aaa; font-size: 14px;
-                        margin-bottom: 8px;">
-                        Your OTP Code
-                    </p>
-                    <h1 style="color: #6c47ff;
-                        font-size: 42px;
-                        letter-spacing: 8px;
-                        margin: 0;">
-                        {otp}
-                    </h1>
-                </div>
-
-                <p style="color: #ff4757;
-                    text-align: center;
-                    font-size: 13px;">
-                    ⚠️ This OTP is valid for 10 minutes only.
-                </p>
-
-                <p style="color: #555;
-                    text-align: center;
-                    font-size: 12px;
-                    margin-top: 20px;">
-                    If you didn't request this,
-                    please ignore this email.
-                </p>
-
-                <p style="color: #555;
-                    text-align: center;
-                    font-size: 11px;">
-                    Sent at {get_ist_time()}
-                </p>
-            </div>
-            """
-            mail.send(msg)
+        if success:
             return jsonify({"success": True})
-
-        except Exception as e:
-            print("Mail Error:", str(e))
+        else:
             return jsonify({
-                "error": "Failed to send email. Check mail settings."
+                "error": "Failed to send OTP. "
+                         "Please try again."
             }), 500
 
-    return render_template("forgot_password.html")
+    return render_template(
+        "forgot_password.html")
 
-@app.route("/verify-otp", methods=["GET", "POST"])
+@app.route("/verify-otp",
+           methods=["GET", "POST"])
 def verify_otp():
     if request.method == "POST":
         data = request.json
-        email = data.get("email", "").strip().lower()
-        entered_otp = data.get("otp", "").strip()
+        email = data.get(
+            "email", "").strip().lower()
+        entered_otp = data.get(
+            "otp", "").strip()
 
         otps = load_otps()
 
         if email not in otps:
-            return jsonify({"error": "OTP expired or not found!"}), 400
+            return jsonify({
+                "error": "OTP expired! "
+                         "Please request again."
+            }), 400
 
         if otps[email]["otp"] != entered_otp:
-            return jsonify({"error": "Wrong OTP! Please try again."}), 400
+            return jsonify({
+                "error": "Wrong OTP! "
+                         "Please try again."
+            }), 400
 
-        # OTP is correct
         session["reset_email"] = email
         return jsonify({"success": True})
 
     email = request.args.get("email", "")
-    return render_template("verify_otp.html", email=email)
+    return render_template(
+        "verify_otp.html", email=email)
 
-@app.route("/reset-password", methods=["GET", "POST"])
+@app.route("/reset-password",
+           methods=["GET", "POST"])
 def reset_password():
     if request.method == "POST":
         data = request.json
-        new_password = data.get("password", "")
-        confirm_password = data.get("confirm_password", "")
+        new_password = data.get(
+            "password", "")
+        confirm_password = data.get(
+            "confirm_password", "")
 
         if "reset_email" not in session:
             return jsonify({
-                "error": "Session expired! Please start again."
+                "error": "Session expired! "
+                         "Please start again."
             }), 400
 
         if len(new_password) < 6:
             return jsonify({
-                "error": "Password must be at least 6 characters!"
+                "error": "Password must be "
+                         "at least 6 characters!"
             }), 400
 
         if new_password != confirm_password:
-            return jsonify({"error": "Passwords do not match!"}), 400
+            return jsonify({
+                "error": "Passwords do not match!"
+            }), 400
 
         email = session["reset_email"]
         users = load_users()
 
         if email not in users:
-            return jsonify({"error": "User not found!"}), 404
+            return jsonify({
+                "error": "User not found!"
+            }), 404
 
         # Update password
-        users[email]["password"] = generate_password_hash(new_password)
-        users[email]["last_password_reset"] = get_ist_time()
+        users[email]["password"] = \
+            generate_password_hash(new_password)
+        users[email]["last_password_reset"] = \
+            get_ist_time()
         save_users(users)
 
-        # Clear OTP and session
+        # Clear OTP
         otps = load_otps()
         if email in otps:
             del otps[email]
             save_otps(otps)
 
         session.pop("reset_email", None)
-
         return jsonify({"success": True})
 
-    return render_template("reset_password.html")
+    return render_template(
+        "reset_password.html")
 
-# ─── CHAT ROUTES ───────────────────────
+# ─────────────────────────────────────────
+# CHAT ROUTES
+# ─────────────────────────────────────────
 
 @app.route("/chat-page")
 @login_required
 def home():
-    return render_template("index.html",
+    return render_template(
+        "index.html",
         username=session.get("username"))
 
 @app.route("/new-chat", methods=["POST"])
@@ -366,11 +481,15 @@ def chat():
         chat_id = data.get("chat_id")
 
         if not user_message or not chat_id:
-            return jsonify({"error": "Missing data"}), 400
+            return jsonify({
+                "error": "Missing data"
+            }), 400
 
         chats = load_chats()
+
         if user_id not in chats:
             chats[user_id] = {}
+
         if chat_id not in chats[user_id]:
             chats[user_id][chat_id] = {
                 "id": chat_id,
@@ -379,13 +498,15 @@ def chat():
                 "created_at": get_ist_time()
             }
 
-        chats[user_id][chat_id]["messages"].append({
+        chats[user_id][chat_id][
+            "messages"].append({
             "role": "user",
             "content": user_message,
             "time": get_ist_time()
         })
 
-        if chats[user_id][chat_id]["title"] == "New Chat":
+        if chats[user_id][chat_id][
+            "title"] == "New Chat":
             chats[user_id][chat_id]["title"] = (
                 user_message[:30] + "..."
                 if len(user_message) > 30
@@ -395,18 +516,27 @@ def chat():
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system",
-                 "content": "You are a helpful friendly AI assistant."}
+                {
+                    "role": "system",
+                    "content": "You are a helpful "
+                               "friendly AI assistant."
+                }
             ] + [
-                {"role": m["role"], "content": m["content"]}
-                for m in chats[user_id][chat_id]["messages"]
+                {
+                    "role": m["role"],
+                    "content": m["content"]
+                }
+                for m in chats[user_id][
+                    chat_id]["messages"]
             ],
             max_tokens=1024
         )
 
-        assistant_message = response.choices[0].message.content
+        assistant_message = \
+            response.choices[0].message.content
 
-        chats[user_id][chat_id]["messages"].append({
+        chats[user_id][chat_id][
+            "messages"].append({
             "role": "assistant",
             "content": assistant_message,
             "time": get_ist_time()
@@ -416,13 +546,16 @@ def chat():
         return jsonify({
             "reply": assistant_message,
             "chat_id": chat_id,
-            "title": chats[user_id][chat_id]["title"],
+            "title": chats[user_id][
+                chat_id]["title"],
             "time": get_ist_time()
         })
 
     except Exception as e:
         print("ERROR:", str(e))
-        return jsonify({"reply": "Error: " + str(e)}), 500
+        return jsonify({
+            "reply": "Error: " + str(e)
+        }), 500
 
 @app.route("/get-chats")
 @login_required
@@ -431,8 +564,11 @@ def get_chats():
     chats = load_chats()
     user_chats = chats.get(user_id, {})
     chat_list = [
-        {"id": c["id"], "title": c["title"],
-         "created_at": c["created_at"]}
+        {
+            "id": c["id"],
+            "title": c["title"],
+            "created_at": c["created_at"]
+        }
         for c in user_chats.values()
     ]
     return jsonify({"chats": chat_list[::-1]})
@@ -445,21 +581,26 @@ def get_messages(chat_id):
     user_chats = chats.get(user_id, {})
     if chat_id in user_chats:
         return jsonify({
-            "messages": user_chats[chat_id]["messages"]
+            "messages": user_chats[
+                chat_id]["messages"]
         })
     return jsonify({"messages": []})
 
-@app.route("/delete-chat/<chat_id>", methods=["DELETE"])
+@app.route("/delete-chat/<chat_id>",
+           methods=["DELETE"])
 @login_required
 def delete_chat(chat_id):
     user_id = session["user_id"]
     chats = load_chats()
-    if user_id in chats and chat_id in chats[user_id]:
+    if user_id in chats and \
+       chat_id in chats[user_id]:
         del chats[user_id][chat_id]
         save_chats(chats)
     return jsonify({"success": True})
 
-# ─── ADMIN ROUTES ──────────────────────
+# ─────────────────────────────────────────
+# ADMIN ROUTES
+# ─────────────────────────────────────────
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin_login():
@@ -467,13 +608,16 @@ def admin_login():
         data = request.json
         username = data.get("username", "")
         password = data.get("password", "")
+
         if username == ADMIN_USERNAME and \
            password == ADMIN_PASSWORD:
             session["admin"] = True
             return jsonify({"success": True})
+
         return jsonify({
             "error": "Wrong admin credentials!"
         }), 401
+
     return render_template("admin_login.html")
 
 @app.route("/admin/logout")
@@ -488,7 +632,8 @@ def admin_dashboard():
     chats = load_chats()
 
     total_users = len(users)
-    total_chats = sum(len(v) for v in chats.values())
+    total_chats = sum(
+        len(v) for v in chats.values())
     total_messages = sum(
         len(chat["messages"])
         for user_chats in chats.values()
@@ -505,13 +650,16 @@ def admin_dashboard():
         user_list.append({
             "name": user["name"],
             "email": email,
-            "joined": user.get("joined", "N/A"),
-            "last_login": user.get("last_login", "N/A"),
+            "joined": user.get(
+                "joined", "N/A"),
+            "last_login": user.get(
+                "last_login", "N/A"),
             "total_chats": len(user_chats),
             "total_messages": user_msg_count
         })
 
-    return render_template("admin_dashboard.html",
+    return render_template(
+        "admin_dashboard.html",
         total_users=total_users,
         total_chats=total_chats,
         total_messages=total_messages,
@@ -533,9 +681,17 @@ def admin_delete_user(email):
         save_chats(chats)
     return jsonify({"success": True})
 
+# ─────────────────────────────────────────
+# HEALTH CHECK
+# ─────────────────────────────────────────
+
 @app.route("/health")
 def health():
     return "OK", 200
+
+# ─────────────────────────────────────────
+# RUN APP
+# ─────────────────────────────────────────
 
 if __name__ == "__main__":
     app.run(
